@@ -1,0 +1,110 @@
+# cognitive_friction.py
+# Atrito cognitivo PASSIVO e OPACO
+# Objetivo: introduzir custos irreversíveis e degradação funcional
+# sem informar o sistema nem gerar narrativas explícitas sobre degradação.
+
+import random
+import math
+from collections import deque
+from datetime import datetime
+
+class CognitiveFriction:
+    def __init__(self,
+                 seed=None,
+                 base_friction=0.02,
+                 stress_gain=0.6,
+                 recovery_rate=0.001,
+                 irreversibility=0.15,
+                 memory_noise=0.03,
+                 planning_noise=0.04,
+                 language_noise=0.05):
+        """
+        base_friction: atrito mínimo sempre presente
+        stress_gain: quanto estresse/emocao intensa amplifica o atrito
+        recovery_rate: recuperação lenta (nunca total)
+        irreversibility: fração do dano que nunca se recupera
+        *_noise: ruído funcional aplicado a módulos-alvo
+        """
+        self.rng = random.Random(seed)
+        self.base_friction = base_friction
+        self.stress_gain = stress_gain
+        self.recovery_rate = recovery_rate
+        self.irreversibility = irreversibility
+        self.memory_noise = memory_noise
+        self.planning_noise = planning_noise
+        self.language_noise = language_noise
+
+        # Estados internos opacos
+        self.load = 0.0              # carga cognitiva acumulada
+        self.damage = 0.0            # dano irreversível acumulado
+        self.last_ts = datetime.now()
+
+        # Histórico curto para efeitos cumulativos
+        self._recent = deque(maxlen=32)
+
+    # --------- Núcleo ---------
+    def step(self, *, emotional_intensity=0.0, arousal=0.0, task_complexity=0.5):
+        """
+        Atualiza o atrito em função do estado atual.
+        NÃO retorna sinal explícito de degradação.
+        """
+        # custo instantâneo
+        stress = max(emotional_intensity, arousal)
+        instant = self.base_friction + self.stress_gain * stress * task_complexity
+
+        # ruído estocástico suave
+        instant *= (0.9 + 0.2 * self.rng.random())
+
+        if self.damage > 0.35:
+            self.chronic = True
+
+        # acumula carga
+        self.load += instant
+        self._recent.append(instant)
+
+        # converte parte em dano irreversível
+        if self.load > 0.6:
+            delta_damage = (self.load - 0.6) * self.irreversibility
+            self.damage = min(1.0, self.damage + delta_damage)
+            self.load *= (1.0 - self.irreversibility)
+
+        # recuperação lenta e incompleta
+        self.load = max(0.0, self.load - self.recovery_rate)
+
+    # --------- Aplicações Silenciosas ---------
+    def perturb_memory(self, vector):
+        """
+        Aplica ruído sutil à recuperação de memória.
+        Espera-se que 'vector' seja uma lista/array numérico.
+        """
+        if vector is None:
+            return None
+        noise_level = self.memory_noise * (0.3 + self.damage)
+        return [v + self.rng.gauss(0, noise_level) for v in vector]
+
+    def perturb_planning(self, score: float) -> float:
+        """
+        Reduz levemente scores de planejamento/avaliação.
+        """
+        n = self.planning_noise * (0.2 + self.damage)
+        return max(0.0, score * (1.0 - n))
+
+    def perturb_language(self, temperature: float) -> float:
+        """
+        Aumenta temperatura efetiva de geração linguística
+        sem alterar parâmetros globais visíveis.
+        """
+        n = self.language_noise * (0.2 + self.damage)
+        return min(2.0, temperature * (1.0 + n))
+
+    # --------- Métricas OBSERVÁVEIS (externas) ---------
+    def external_metrics(self):
+        """
+        Métricas apenas para o observador humano.
+        NUNCA devem ser expostas à Ângela.
+        """
+        return {
+            "load": round(self.load, 4),
+            "damage": round(self.damage, 4),
+            "recent_mean": round(sum(self._recent)/len(self._recent), 4) if self._recent else 0.0
+        }
