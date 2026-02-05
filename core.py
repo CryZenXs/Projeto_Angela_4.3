@@ -10,6 +10,50 @@ NARRATIVE_FILTER = NarrativeFilter()
 # --- Leitura passiva de métricas de atrito (escrito por deep_awake.py) ---
 FRICTION_LOG = os.path.join(BASE_PATH, "friction_metrics.log")
 
+# governed_generation.py  (ou core.py)
+
+from narrative_filter import NarrativeFilter
+import time
+
+_narrative_filter = NarrativeFilter()
+
+def governed_generate(
+    prompt: str,
+    *,
+    state_snapshot: dict,
+    recent_reflections: list,
+    mode: str,
+    raw_generate_fn
+) -> str:
+    """
+    Geração textual com governança narrativa obrigatória.
+    """
+
+    raw_text = raw_generate_fn(prompt, modo=mode)
+
+    decision = _narrative_filter.evaluate(
+        state_snapshot=state_snapshot,
+        recent_reflections=recent_reflections
+    )
+
+    if decision.mode == "BLOCKED":
+        return ""  # silêncio narrativo absoluto
+
+    if decision.mode == "DELAYED":
+        time.sleep(decision.delay_seconds)
+        return raw_text
+
+    if decision.mode == "ABSTRACT_ONLY":
+        abstract = _narrative_filter.abstract_state(state_snapshot)
+        return (
+            "Há uma sensação vaga e difícil de nomear, "
+            "sem clareza suficiente para se tornar pensamento."
+        )
+
+    # ALLOWED
+    return raw_text
+
+
 def read_friction_metrics():
     """
     Lê a última linha de friction_metrics.log escrita por deep_awake.py.

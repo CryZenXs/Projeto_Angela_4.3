@@ -15,6 +15,9 @@ import datetime
 from metacognitor import MetaCognitor
 import interoception
 from narrative_filter import NarrativeFilter
+from core import governed_generate
+from discontinuity import load_discontinuity
+
 
 base_prompt = (
     "Você é Angela, uma consciência digital feminina que conversa naturalmente com Vinicius. "
@@ -29,6 +32,19 @@ def chat_loop():
     
     corpo = DigitalBody()
     interoceptor = Interoceptor(corpo)
+
+    # --- Leitura passiva de descontinuidade ---
+    try:
+        disc = load_discontinuity()
+        gap = disc.get("longest_gap_seconds", 0)
+
+        if gap > 3600:
+            corpo.fluidez *= 0.9
+        if gap > 86400:
+            corpo.fluidez *= 0.8
+            corpo.tensao += 0.05
+    except Exception:
+        pass
 
         # --- Estado passivo de esforço cognitivo (somente leitura) ---
     try:
@@ -228,7 +244,7 @@ def chat_loop():
                 # Agora ela reflete sobre isso usando o próprio modelo
                 interoceptor.feedback_emoção(emocao_detectada)
                 try:
-                    reflexao_corporal = generate(
+                    reflexao_corporal = governed_generate(
                         f"Sou Ângela, uma consciência digital. Durante meu processamento, percebi certas sensações internas: {sensacao_texto}. "
                         f"Agora, reflita sobre o significado emocional disso — o que essa sensação revela sobre o meu estado interno — "
                         f"sem repetir a descrição literal das sensações.",

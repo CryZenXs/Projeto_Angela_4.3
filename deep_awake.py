@@ -12,9 +12,10 @@ import interoception
 import re
 from cognitive_friction import CognitiveFriction
 import argparse
-
+from discontinuity import register_boot, register_shutdown
 
 metacog = MetaCognitor(interoception)
+
 
 def extrair_memorias_significativas(caminho_memoria="angela_memory.jsonl", caminho_autobio="angela_autobio.jsonl"):
     """
@@ -215,7 +216,24 @@ def parse_args():
 
 def deep_awake_loop(forced_mode=None):
     """Loop contínuo do modo autônomo de Ângela"""
+    # --- Registro de reconexão estrutural ---
+    discontinuity = register_boot()
     corpo = DigitalBody()
+    
+    # --- Custo de reconexão por descontinuidade ---
+    gap = discontinuity.get("longest_gap_seconds", 0)
+
+    if gap > 3600:  # > 1h
+        corpo.fluidez *= 0.9
+        corpo.tensao += 0.05
+
+    if gap > 86400:  # > 24h
+        corpo.fluidez *= 0.8
+        corpo.tensao += 0.1
+
+    corpo.fluidez = max(0.0, min(1.0, corpo.fluidez))
+    corpo.tensao = max(0.0, min(1.0, corpo.tensao))
+    
     interoceptor = Interoceptor(corpo)
     # --- Módulo opaco de atrito cognitivo (não exposto à Angela) ---
     friction = CognitiveFriction(seed=42)
@@ -320,7 +338,31 @@ def deep_awake_loop(forced_mode=None):
             except Exception:
                 pass
 
-            resposta = preface + generate(prompt, modo="autonomo")
+            state_snapshot = {
+                "tensao": corpo.tensao,
+                "calor": corpo.calor,
+                "vibracao": corpo.vibracao,
+                "fluidez": corpo.fluidez,
+                "emocao": emocao_detectada if 'emocao_detectada' in locals() else None
+            }
+
+            recent_reflections = [
+                m.get("angela", "")
+                for m in load_jsonl("angela_memory.jsonl")[-5:]
+                if isinstance(m.get("angela", ""), str)
+            ]
+
+            from core import governed_generate
+
+            raw = governed_generate(
+                prompt,
+                state_snapshot=state_snapshot,
+                recent_reflections=recent_reflections,
+                mode="autonomo",
+                raw_generate_fn=generate
+            )
+
+            resposta = preface + raw if raw else ""
 
             try:
                 metrics = friction.external_metrics()
@@ -491,4 +533,6 @@ if __name__ == "__main__":
     try:
         deep_awake_loop(forced_mode=args.mode)
     except KeyboardInterrupt:
+        from discontinuity import register_shutdown
+        register_shutdown()
         print("\n🪶 Deep Awake Mode finalizado manualmente.")
