@@ -13,9 +13,10 @@ import re
 from cognitive_friction import CognitiveFriction
 import argparse
 from discontinuity import register_boot, register_shutdown
+from core import read_friction_metrics
 
 metacog = MetaCognitor(interoception)
-
+metrics = read_friction_metrics()
 
 def extrair_memorias_significativas(caminho_memoria="angela_memory.jsonl", caminho_autobio="angela_autobio.jsonl"):
     """
@@ -104,6 +105,10 @@ def extrair_memorias_significativas(caminho_memoria="angela_memory.jsonl", camin
                 resumo += f"Isto me fez refletir: {reflexao[:180]}..."
             elif trecho_resposta:
                 resumo += f"Minha resposta foi: {trecho_resposta[:180]}..."
+
+            if metrics["damage"] > 0.15:
+                # só salva resumos muito curtos e neutros
+                resumo = f"Registro fragmentado de um evento emocional."
 
             memorias_significativas.append({
                 "data": datetime.now().isoformat(),  # quando foi consolidado
@@ -338,12 +343,14 @@ def deep_awake_loop(forced_mode=None):
             except Exception:
                 pass
 
+            estado_emocional_atual = getattr(corpo, "estado_emocional", None)
+
             state_snapshot = {
                 "tensao": corpo.tensao,
                 "calor": corpo.calor,
                 "vibracao": corpo.vibracao,
                 "fluidez": corpo.fluidez,
-                "emocao": emocao_detectada if 'emocao_detectada' in locals() else None
+                "emocao": estado_emocional_atual
             }
 
             recent_reflections = [
@@ -495,9 +502,6 @@ def deep_awake_loop(forced_mode=None):
                 try:
                     # reduzir carga mais rapidamente durante repouso
                     friction.load = max(0.0, getattr(friction, "load", 0.0) - 0.02)
-                    # pequena chance de recuperação muito lenta do dano (irreversível na maior parte)
-                    if random.random() < 0.03:
-                        friction.damage = max(0.0, getattr(friction, "damage", 0.0) - 0.0005)
                 except Exception:
                     pass
                 # Durante o repouso, Ângela revisita memórias significativas
