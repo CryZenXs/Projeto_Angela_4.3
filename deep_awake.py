@@ -215,7 +215,7 @@ def parse_args():
         "--mode",
         type=str,
         default="auto",
-        choices=["auto", "vigilia", "introspecção", "repouso"],
+        choices=["auto", "vigilia", "introspeccao", "repouso"],
         help="Força o modo de operação (ignora ciclo biológico se não for auto)"
     )
     return parser.parse_args()

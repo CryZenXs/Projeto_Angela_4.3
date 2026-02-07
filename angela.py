@@ -75,7 +75,7 @@ def chat_loop():
                 "autor": "Vinicius",
                 "conteudo": user_input,
                 "tipo": "dialogo",
-                "timestamp": datetime.datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat()
             }
             if not user_input:
                 continue
@@ -321,7 +321,7 @@ def chat_loop():
                         "autor": "Ângela",
                         "conteudo": reflexao_temporal,
                         "tipo": "temporal",
-                        "timestamp": datetime.datetime.now().isoformat()
+                        "timestamp": datetime.now().isoformat()
                     },
                     reflexao_temporal,
                     corpo,
