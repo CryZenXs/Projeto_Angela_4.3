@@ -37,9 +37,16 @@ def chat_loop():
 
     # --- Leitura passiva de descontinuidade ---
     try:
-        from discontinuity import calculate_reconnection_cost
+        from discontinuity import calculate_reconnection_cost, load_discontinuity
+        from datetime import datetime
+        
         disc = load_discontinuity()
-        gap = disc.get("longest_gap_seconds", 0)
+        
+        # Calcula gap atual desde último shutdown
+        gap = 0
+        if disc.get("last_shutdown"):
+            last_shutdown = datetime.fromisoformat(disc["last_shutdown"])
+            gap = (datetime.now() - last_shutdown).total_seconds()
         
         reconnection_cost = calculate_reconnection_cost(gap)
         corpo.fluidez = max(0.0, min(1.0, corpo.fluidez + reconnection_cost["fluidez"]))

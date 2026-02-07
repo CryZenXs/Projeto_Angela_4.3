@@ -21,16 +21,18 @@ def register_boot():
     data = load_discontinuity()
     now = datetime.now()
 
+    current_gap = 0  # Gap atual desta reconexão
     if data["last_shutdown"]:
         last = datetime.fromisoformat(data["last_shutdown"])
-        gap = (now - last).total_seconds()
-        data["total_downtime_seconds"] += gap
+        current_gap = (now - last).total_seconds()
+        data["total_downtime_seconds"] += current_gap
         data["longest_gap_seconds"] = max(
-            data["longest_gap_seconds"], gap
+            data["longest_gap_seconds"], current_gap
         )
 
     data["boot_count"] += 1
     data["last_boot"] = now.isoformat()
+    data["current_gap_seconds"] = current_gap  # Adiciona gap atual
 
     with open(FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)

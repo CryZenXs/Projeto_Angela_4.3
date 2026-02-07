@@ -228,7 +228,7 @@ def deep_awake_loop(forced_mode=None):
     corpo = DigitalBody()
     
     # --- Custo de reconexão por descontinuidade ---
-    gap = discontinuity.get("longest_gap_seconds", 0)
+    gap = discontinuity.get("current_gap_seconds", 0)
     reconnection_cost = calculate_reconnection_cost(gap)
     
     # Aplica custos ao corpo
