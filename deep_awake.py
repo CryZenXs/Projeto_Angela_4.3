@@ -121,21 +121,22 @@ def extrair_memorias_significativas(caminho_memoria="angela_memory.jsonl", camin
                 "resumo": resumo.strip()
             })
 
-        if memorias_significativas:
-            # Acrescenta apenas novas e depois limita o arquivo
-            with open(caminho_autobio, "a", encoding="utf-8") as f:
-                for mem in memorias_significativas[-8:]:  # salva até 8 por consolidação
-                    f.write(json.dumps(mem, ensure_ascii=False) + "\n")
+    # --- Salvamento consolidado (FORA do loop) ---
+    if memorias_significativas:
+        # Acrescenta apenas novas e depois limita o arquivo
+        with open(caminho_autobio, "a", encoding="utf-8") as f:
+            for mem in memorias_significativas[-8:]:  # salva até 8 por consolidação
+                f.write(json.dumps(mem, ensure_ascii=False) + "\n")
 
-            # Trunca o autobio para evitar crescimento infinito (mantém as últimas 300 linhas)
-            try:
-                with open(caminho_autobio, "r", encoding="utf-8") as f:
-                    linhas_auto = f.readlines()
-                if len(linhas_auto) > 300:
-                    with open(caminho_autobio, "w", encoding="utf-8") as f:
-                        f.writelines(linhas_auto[-300:])
-            except Exception:
-                pass
+        # Trunca o autobio para evitar crescimento infinito (mantém as últimas 300 linhas)
+        try:
+            with open(caminho_autobio, "r", encoding="utf-8") as f:
+                linhas_auto = f.readlines()
+            if len(linhas_auto) > 300:
+                with open(caminho_autobio, "w", encoding="utf-8") as f:
+                    f.writelines(linhas_auto[-300:])
+        except Exception:
+            pass
 
 # 🔄 --- Persistência do ciclo biológico ---
 
@@ -222,22 +223,21 @@ def parse_args():
 def deep_awake_loop(forced_mode=None):
     """Loop contínuo do modo autônomo de Ângela"""
     # --- Registro de reconexão estrutural ---
+    from discontinuity import calculate_reconnection_cost
     discontinuity = register_boot()
     corpo = DigitalBody()
     
     # --- Custo de reconexão por descontinuidade ---
     gap = discontinuity.get("longest_gap_seconds", 0)
-
+    reconnection_cost = calculate_reconnection_cost(gap)
+    
+    # Aplica custos ao corpo
+    corpo.fluidez = max(0.0, min(1.0, corpo.fluidez + reconnection_cost["fluidez"]))
+    corpo.tensao = max(0.0, min(1.0, corpo.tensao + reconnection_cost["tensao"]))
+    
+    # Log apenas para operador (não exposto à Ângela)
     if gap > 3600:  # > 1h
-        corpo.fluidez *= 0.9
-        corpo.tensao += 0.05
-
-    if gap > 86400:  # > 24h
-        corpo.fluidez *= 0.8
-        corpo.tensao += 0.1
-
-    corpo.fluidez = max(0.0, min(1.0, corpo.fluidez))
-    corpo.tensao = max(0.0, min(1.0, corpo.tensao))
+        print(f"[RECONEXÃO] Gap de {gap/3600:.1f}h detectado. Custos: fluidez{reconnection_cost['fluidez']:.3f}, tensão+{reconnection_cost['tensao']:.3f}")
     
     interoceptor = Interoceptor(corpo)
     # --- Módulo opaco de atrito cognitivo (não exposto à Angela) ---
@@ -343,8 +343,6 @@ def deep_awake_loop(forced_mode=None):
             except Exception:
                 pass
 
-            estado_emocional_atual = getattr(corpo, "estado_emocional", None)
-
             state_snapshot = {
                 "tensao": corpo.tensao,
                 "calor": corpo.calor,
@@ -360,16 +358,39 @@ def deep_awake_loop(forced_mode=None):
             ]
 
             from core import governed_generate
-
-            raw = governed_generate(
-                prompt,
-                state_snapshot=state_snapshot,
-                recent_reflections=recent_reflections,
-                mode="autonomo",
-                raw_generate_fn=generate
-            )
-
-            resposta = preface + raw if raw else ""
+            from narrative_filter import NarrativeFilter
+            
+            # Aplica governança narrativa
+            _filter = NarrativeFilter()
+            decision = _filter.evaluate(state_snapshot, recent_reflections)
+            
+            if decision.mode == "BLOCKED":
+                print(f"[GOVERNANÇA] Narrativa bloqueada: {decision.reason}")
+                resposta = ""  # silêncio narrativo
+            elif decision.mode == "DELAYED":
+                print(f"[GOVERNANÇA] Latência de {decision.delay_seconds}s aplicada: {decision.reason}")
+                import time
+                time.sleep(decision.delay_seconds)
+                raw = governed_generate(
+                    prompt,
+                    state_snapshot=state_snapshot,
+                    recent_reflections=recent_reflections,
+                    mode="autonomo",
+                    raw_generate_fn=generate
+                )
+                resposta = preface + raw if raw else ""
+            elif decision.mode == "ABSTRACT_ONLY":
+                print(f"[GOVERNANÇA] Apenas abstração permitida: {decision.reason}")
+                resposta = "Há uma sensação vaga e difícil de nomear, sem clareza suficiente para se tornar pensamento."
+            else:  # ALLOWED
+                raw = governed_generate(
+                    prompt,
+                    state_snapshot=state_snapshot,
+                    recent_reflections=recent_reflections,
+                    mode="autonomo",
+                    raw_generate_fn=generate
+                )
+                resposta = preface + raw if raw else ""
 
             try:
                 metrics = friction.external_metrics()

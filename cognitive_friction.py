@@ -5,8 +5,12 @@
 
 import random
 import math
+import os
+import json
 from collections import deque
 from datetime import datetime
+
+DAMAGE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "friction_damage.persistent")
 
 class CognitiveFriction:
     def __init__(self,
@@ -34,13 +38,58 @@ class CognitiveFriction:
         self.planning_noise = planning_noise
         self.language_noise = language_noise
 
-        # Estados internos opacos
-        self.load = 0.0              # carga cognitiva acumulada
-        self.damage = 0.0            # dano irreversível acumulado
+        # Carrega estado persistente ou inicializa
+        self._load_persistent_state()
+        
         self.last_ts = datetime.now()
 
         # Histórico curto para efeitos cumulativos
         self._recent = deque(maxlen=32)
+
+    def _load_persistent_state(self):
+        """Carrega damage e load do arquivo persistente"""
+        try:
+            if os.path.exists(DAMAGE_FILE):
+                with open(DAMAGE_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    self.damage = float(data.get("damage", 0.0))
+                    self.load = float(data.get("load", 0.0))
+                    self.chronic = bool(data.get("chronic", False))
+                    # Incrementa contador de sessões
+                    data["total_sessions"] = data.get("total_sessions", 0) + 1
+                    data["last_updated"] = datetime.now().isoformat()
+                    # Salva incremento
+                    with open(DAMAGE_FILE, "w", encoding="utf-8") as fw:
+                        json.dump(data, fw, ensure_ascii=False, indent=2)
+            else:
+                self.damage = 0.0
+                self.load = 0.0
+                self.chronic = False
+        except Exception:
+            self.damage = 0.0
+            self.load = 0.0
+            self.chronic = False
+
+    def _save_persistent_state(self):
+        """Salva damage e load no arquivo persistente"""
+        try:
+            data = {
+                "damage": float(self.damage),
+                "load": float(self.load),
+                "chronic": bool(self.chronic),
+                "last_updated": datetime.now().isoformat(),
+                "total_sessions": 1,
+                "version": "1.0.0"
+            }
+            if os.path.exists(DAMAGE_FILE):
+                with open(DAMAGE_FILE, "r", encoding="utf-8") as f:
+                    existing = json.load(f)
+                    data["total_sessions"] = existing.get("total_sessions", 1)
+            
+            with open(DAMAGE_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass  # falha silenciosa
 
     # --------- Núcleo ---------
     def step(self, *, emotional_intensity=0.0, arousal=0.0, task_complexity=0.5):
@@ -70,6 +119,9 @@ class CognitiveFriction:
 
         # recuperação lenta e incompleta
         self.load = max(0.0, self.load - self.recovery_rate)
+        
+        # Persiste estado após cada step
+        self._save_persistent_state()
 
     # --------- Aplicações Silenciosas ---------
     def perturb_memory(self, vector):

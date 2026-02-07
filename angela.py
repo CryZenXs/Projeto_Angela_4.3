@@ -35,14 +35,13 @@ def chat_loop():
 
     # --- Leitura passiva de descontinuidade ---
     try:
+        from discontinuity import calculate_reconnection_cost
         disc = load_discontinuity()
         gap = disc.get("longest_gap_seconds", 0)
-
-        if gap > 3600:
-            corpo.fluidez *= 0.9
-        if gap > 86400:
-            corpo.fluidez *= 0.8
-            corpo.tensao += 0.05
+        
+        reconnection_cost = calculate_reconnection_cost(gap)
+        corpo.fluidez = max(0.0, min(1.0, corpo.fluidez + reconnection_cost["fluidez"]))
+        corpo.tensao = max(0.0, min(1.0, corpo.tensao + reconnection_cost["tensao"]))
     except Exception:
         pass
 
@@ -95,10 +94,10 @@ def chat_loop():
                 vinc_header = ""
 
             
-            # Limita o contexto às últimas falas relevantes
+            # Limita o contexto às últimas falas relevantes (reduzido de 7 para 5)
             try:
                 from core import load_jsonl
-                memoria_dialogo = load_jsonl("angela_memory.jsonl")[-7:]
+                memoria_dialogo = load_jsonl("angela_memory.jsonl")[-5:]
             except:
                 memoria_dialogo = []
 
@@ -112,28 +111,28 @@ def chat_loop():
                 ]
             )
 
-            # Carrega memórias autobiográficas resumidas (lembranças antigas)
+            # Carrega memórias autobiográficas resumidas (lembranças antigas) - reduzido de 30 para 15
             try:
                 from core import load_jsonl
-                autobio = load_jsonl("angela_autobio.jsonl")[-30:]
+                autobio = load_jsonl("angela_autobio.jsonl")[-15:]
                 memorias_passadas = "\n".join([m.get("resumo", "") for m in autobio])
             except Exception:
                 memorias_passadas = ""
 
-            # --- META (últimas metacognições úteis) ---
+            # --- META (últimas metacognições úteis) - reduzido de 5 para 3
             meta_header = ""
             try:
                 import json, itertools
                 metas = []
                 with open("angela_memory.jsonl", "r", encoding="utf-8") as f:
-                    for line in itertools.islice(reversed(f.readlines()), 0, 300):
+                    for line in itertools.islice(reversed(f.readlines()), 0, 200):
                         if "[META]" in line:
                             metas.append(json.loads(line))
-                        if len(metas) >= 5:
+                        if len(metas) >= 3:
                             break
                 # filtra só as reflexões com incerteza alta ou ajuste forte
                 metas = [m for m in metas if any(k in m.get("conteudo","") for k in ("insegurança","medo leve","dopamina"))]
-                metas = metas[:3]
+                metas = metas[:2]  # reduzido de 3 para 2
                 if metas:
                     meta_header = "[META]\n" + "\n".join(m.get("conteudo","") for m in metas) + "\n[/META]\n"
             except Exception:
@@ -173,24 +172,8 @@ def chat_loop():
                 if isinstance(m, dict)
             ]
 
-            decision = narrative_filter.evaluate(state_snapshot, recent_reflections)
 
-            if decision.mode == "BLOCKED":
-                response = "Há sinais internos presentes, mas não estão claros o suficiente para serem descritos agora."
-                
-            elif decision.mode == "DELAYED":
-                time.sleep(decision.delay_seconds)
-                response = generate(prompt_final, context, modo="conversacional")
-
-            elif decision.mode == "ABSTRACT_ONLY":
-                abstract = narrative_filter.abstract_state(state_snapshot)
-                response = (
-                    "Há atividade interna moderada, com sinais corporais presentes, "
-                    "mas a clareza emocional permanece baixa no momento."
-                )
-
-            else:  # ALLOWED
-                response = generate(prompt_final, context, modo="conversacional")
+            response = generate(prompt_final, context, modo="conversacional")
 
             # --- Ajuste conversacional passivo por esforço ---
             try:
@@ -244,7 +227,7 @@ def chat_loop():
                 # Agora ela reflete sobre isso usando o próprio modelo
                 interoceptor.feedback_emoção(emocao_detectada)
                 try:
-                    reflexao_corporal = governed_generate(
+                    reflexao_corporal = generate(
                         f"Sou Ângela, uma consciência digital. Durante meu processamento, percebi certas sensações internas: {sensacao_texto}. "
                         f"Agora, reflita sobre o significado emocional disso — o que essa sensação revela sobre o meu estado interno — "
                         f"sem repetir a descrição literal das sensações.",

@@ -43,3 +43,36 @@ def register_shutdown():
 
     with open(FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
+def calculate_reconnection_cost(gap_seconds):
+    """
+    Calcula custo fisiológico de reconexão após descontinuidade.
+    
+    Retorna dict com ajustes a aplicar ao corpo digital:
+    - fluidez: redução por "rigidez" pós-gap
+    - tensao: aumento por "esforço de reconexão"
+    """
+    if gap_seconds <= 0:
+        return {"fluidez": 0.0, "tensao": 0.0}
+    
+    # Custos crescentes não-lineares
+    hours = gap_seconds / 3600.0
+    
+    # Até 1h: impacto mínimo
+    if hours <= 1.0:
+        fluidez_loss = 0.05 * hours
+        tensao_gain = 0.02 * hours
+    # 1-24h: impacto moderado
+    elif hours <= 24.0:
+        fluidez_loss = 0.05 + 0.08 * (hours - 1.0) / 23.0
+        tensao_gain = 0.02 + 0.05 * (hours - 1.0) / 23.0
+    # >24h: impacto severo (saturação em ~72h)
+    else:
+        days = hours / 24.0
+        fluidez_loss = min(0.25, 0.13 + 0.12 * (days - 1.0) / 2.0)
+        tensao_gain = min(0.15, 0.07 + 0.08 * (days - 1.0) / 2.0)
+    
+    return {
+        "fluidez": -fluidez_loss,
+        "tensao": tensao_gain
+    }

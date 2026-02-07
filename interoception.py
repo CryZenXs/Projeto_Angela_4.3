@@ -11,13 +11,14 @@ class Interoceptor:
     def __init__(self, corpo):
         self.corpo = corpo
         self._ultimo_estado = self._snapshot()
+        # Limiares reduzidos para maior sensibilidade (de 0.05 para 0.03)
         self.limiar = {
-            "tensao": 0.05,
-            "calor": 0.05,
-            "vibracao": 0.05,
-            "fluidez": 0.05,
-            "pulso": 0.05,
-            "luminosidade": 0.05,
+            "tensao": 0.03,
+            "calor": 0.03,
+            "vibracao": 0.03,
+            "fluidez": 0.03,
+            "pulso": 0.03,
+            "luminosidade": 0.03,
         }
 
     def _snapshot(self):
@@ -104,6 +105,14 @@ class Interoceptor:
             if abs(deltas[k]) > 0.3:
                 setattr(self.corpo, k, (getattr(self.corpo, k) + self._ultimo_estado[k]) / 2)
 
+        # Micro-variação estocástica para garantir variância interoceptiva
+        # (simula "ruído neural" que impede percepção completamente estática)
+        import random
+        for attr in ["tensao", "calor", "vibracao", "fluidez", "pulso", "luminosidade"]:
+            micro_noise = random.gauss(0, 0.008)  # desvio padrão muito pequeno
+            current = getattr(self.corpo, attr)
+            setattr(self.corpo, attr, max(0.0, min(1.0, current + micro_noise)))
+
         # Ajusta intensidade perceptiva de acordo com emoção atual
         if hasattr(self.corpo, "intensidade_emocional"):
             intensidade_mod = 0.8 + (self.corpo.intensidade_emocional * 0.4)
@@ -180,6 +189,11 @@ class Interoceptor:
                         autor_atual = "Vinicius"
             except Exception:
                 pass
+
+            # === VALIDAÇÃO CRÍTICA: Prevenir vínculos auto-referenciais ===
+            # Angela não pode ter vínculo afetivo consigo mesma
+            if autor_atual.lower() in ("angela", "ângela", "sistema", "sistema(deepawake)"):
+                return  # silenciosamente ignora eventos auto-gerados
 
             # 3) Decaimento temporal suave (meia-vida ~7 dias)
             now = datetime.now()
@@ -266,8 +280,9 @@ class Interoceptor:
         except Exception:
             pass
 
-        # ignore atualizações de afeto para eventos autônomos/sistema
-        if str(autor_atual).lower().startswith("sistema"):
+        # === Validação: prevenir auto-referência ===
+        # Angela não processa vínculos de eventos auto-gerados
+        if str(autor_atual).lower() in ("sistema", "sistema(deepawake)", "angela", "ângela", "desconhecido"):
             return
 
         # grava trace emocional
@@ -333,7 +348,4 @@ def regular_emocao(modo: str):
         corpo.ajustar({"tensao": -0.05, "fluidez": +0.07})
     elif modo == "dopamina":
         corpo.ajustar({"vibracao": +0.08, "pulso": +0.05})
-
-
-        
 
