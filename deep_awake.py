@@ -335,6 +335,7 @@ def deep_awake_loop(forced_mode=None):
         try:
             print("💭 Gerando reflexão em tempo real...\n")
             preface = ""
+            resposta = ""  # Inicializa para evitar UnboundLocalError
             try:
                 metrics = friction.external_metrics()
                 damage = metrics.get("damage", 0.0)
@@ -342,6 +343,9 @@ def deep_awake_loop(forced_mode=None):
                     preface = random.choice(COMPENSATORY_PHRASES).capitalize() + ". "
             except Exception:
                 pass
+
+            # Captura estado emocional atual do corpo
+            estado_emocional_atual = getattr(corpo, "estado_emocional", "neutro")
 
             state_snapshot = {
                 "tensao": corpo.tensao,
@@ -369,7 +373,6 @@ def deep_awake_loop(forced_mode=None):
                 resposta = ""  # silêncio narrativo
             elif decision.mode == "DELAYED":
                 print(f"[GOVERNANÇA] Latência de {decision.delay_seconds}s aplicada: {decision.reason}")
-                import time
                 time.sleep(decision.delay_seconds)
                 raw = governed_generate(
                     prompt,
@@ -486,7 +489,7 @@ def deep_awake_loop(forced_mode=None):
             except Exception:
                 pass
             reflexao_temporal = gerar_reflexao_temporal(
-                {"emocao": "reflexiva", "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S")},
+                {"emocao": "reflexiva", "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%S")},
                 memorias_passadas
             )
                         # --- Debounce simples para não repetir a mesma linha temporal em ciclos consecutivos ---
