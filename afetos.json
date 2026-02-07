@@ -1,24 +1,10 @@
 {
-  "Sistema(DeepAwake)": {
-    "confianca": 0.8307090627916979,
-    "gratidao": 0.5933636162797842,
-    "saudade": 0.0,
-    "ansiedade": 0.0,
-    "_last": "2026-02-07T00:32:33.604695"
-  },
   "Vinicius": {
     "confianca": 0.47421465094596904,
     "gratidão": 0.5,
     "saudade": 0.49408839176210545,
     "ansiedade": 0.3163267758733996,
     "gratidao": 0.0,
-    "_last": "2026-02-07T00:32:33.604695"
-  },
-  "Ângela": {
-    "confianca": 0.19658240000000002,
-    "gratidao": 0.140416,
-    "saudade": 0.0,
-    "ansiedade": 0.0,
     "_last": "2026-02-07T00:32:33.604695"
   }
 }
